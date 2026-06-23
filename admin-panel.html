@@ -199,8 +199,6 @@
         
         <div onclick="switchView('dashboard')" class="admin-nav-item active" id="nav-dashboard">📊 Dashboard Overview</div>
         <div onclick="switchView('results')" class="admin-nav-item" id="nav-results">📝 Mock Test Results</div>
-        <div onclick="switchView('students')" class="admin-nav-item" id="nav-students">👥 Student Registry</div>
-        <div onclick="switchView('faculty')" class="admin-nav-item" id="nav-faculty">👨‍🏫 Faculty Management</div>
         <div onclick="switchView('courses')" class="admin-nav-item" id="nav-courses">📚 Course Catalog</div>
         <div onclick="switchView('payments')" class="admin-nav-item" id="nav-payments">💰 Fee & Payments</div>
 
@@ -222,10 +220,6 @@
             
             <div class="stats-grid" style="margin-bottom: 2rem;">
                 <div class="admin-card">
-                    <h4 style="color: #64748B; font-size: 0.9rem;">Total Registrations</h4>
-                    <div style="font-size: 2.2rem; font-weight: 800;" id="dash-students">0</div>
-                </div>
-                <div class="admin-card">
                     <h4 style="color: #64748B; font-size: 0.9rem;">Total Tests Taken</h4>
                     <div style="font-size: 2.2rem; font-weight: 800;" id="dash-tests">0</div>
                 </div>
@@ -240,13 +234,6 @@
                 <div style="display: flex; gap: 1rem;">
                     <button class="btn btn-primary" onclick="switchView('results')">Approve Latest Results</button>
                     <button class="btn btn-outline" onclick="switchView('courses')">View Active Courses</button>
-                </div>
-            </div>
-
-            <div class="admin-card">
-                <h3 style="margin-bottom: 1rem; font-weight: 800;">Recent Student Activity</h3>
-                <div class="activity-list" id="recent-activity">
-                    <div class="activity-item"><span>No activity yet.</span></div>
                 </div>
             </div>
         </div>
@@ -275,30 +262,6 @@
             </div>
         </div>
 
-        <!-- Students View -->
-        <div id="view-students" class="app-view">
-            <div class="grid-header">
-                <h1 style="font-size: 2rem; font-weight: 800;">Student Registry</h1>
-            </div>
-            <div class="admin-card" style="padding: 0; overflow: hidden;">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Student</th>
-                            <th>Student ID</th>
-                            <th>Course / Batch</th>
-                            <th>Fee Status</th>
-                            <th>Trial Status</th>
-                            <th>Registration</th>
-                        </tr>
-                    </thead>
-                    <tbody id="stud-tbody">
-                        <tr><td colspan="6" style="text-align:center; padding: 3rem;">Loading Registry...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
         <!-- Courses View (Catalog) -->
         <div id="view-courses" class="app-view">
             <div class="grid-header">
@@ -318,27 +281,6 @@
                     <h3 class="text-gradient">FOUNDATION</h3>
                     <p>10 Active Batches | 300+ Students</p>
                 </div>
-            </div>
-        </div>
-
-        <!-- Faculty View -->
-        <div id="view-faculty" class="app-view">
-            <div class="grid-header">
-                <h1 style="font-size: 2rem; font-weight: 800;">Faculty Management</h1>
-                <button class="btn btn-primary" onclick="alert('Demo: connect this with backend faculty creation later.')">+ Add Faculty</button>
-            </div>
-            <div class="admin-card" style="padding: 0; overflow: hidden;">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Faculty</th>
-                            <th>Subject</th>
-                            <th>Assigned Batches</th>
-                            <th>Use Case</th>
-                        </tr>
-                    </thead>
-                    <tbody id="faculty-tbody"></tbody>
-                </table>
             </div>
         </div>
 
@@ -373,8 +315,6 @@
 
             // Load Data
             if(viewId === 'results') loadResults();
-            if(viewId === 'students') loadStudents();
-            if(viewId === 'faculty') loadFaculty();
             if(viewId === 'dashboard') loadStats();
         }
 
@@ -387,9 +327,10 @@
                 return sum + history.reduce((inner, item) => inner + Number(item.amount || 0), 0);
             }, 0);
             document.getElementById('dash-tests').innerText = results.length;
-            document.getElementById('dash-students').innerText = students.length;
+            if (document.getElementById('dash-students')) {
+                document.getElementById('dash-students').innerText = students.length;
+            }
             document.getElementById('dash-revenue').innerText = '₹' + revenue.toLocaleString('en-IN');
-            renderRecentActivity(students, results);
         }
 
         function loadResults() {
@@ -419,92 +360,6 @@
             });
         }
 
-        function loadStudents() {
-            const users = JSON.parse(localStorage.getItem('udaan-users-db') || '[]');
-            const students = users.filter(u => (u.role || 'student') === 'student');
-            const tbody = document.getElementById('stud-tbody');
-            tbody.innerHTML = '';
-            
-            if (students.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 3rem;">No registered students yet.</td></tr>`;
-                return;
-            }
-
-            [...students].reverse().forEach((u, i) => {
-                const now = Date.now();
-                const trialDuration = 3 * 24 * 60 * 60 * 1000;
-                const timeLeft = trialDuration - (now - u.joinedAt);
-                const daysLeft = Math.max(0, Math.ceil(timeLeft / (1000 * 60 * 60 * 24)));
-                
-                let statusBadge = "";
-                if (u.paid) {
-                    statusBadge = '<span class="badge-pill badge-success">PAID / LIFETIME</span>';
-                } else if (timeLeft > 0) {
-                    statusBadge = `<span class="badge-pill badge-warning">TRIAL: ${daysLeft} DAYS LEFT</span>`;
-                } else {
-                    statusBadge = '<span class="badge-pill" style="background:#fee2e2; color:#991b1b;">TRIAL EXPIRED</span>';
-                }
-
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><b>${u.name}</b><br><small>${u.mobile || u.email || 'No contact'}</small></td>
-                    <td>${u.id || 'Not assigned'}</td>
-                    <td>${u.course || '-'}<br><small>${u.batch || 'No batch selected'}</small></td>
-                    <td><span class="badge-pill ${u.paid ? 'badge-success' : 'badge-warning'}">${u.paid ? 'PAID' : 'PENDING'}</span></td>
-                    <td>${statusBadge}</td>
-                    <td>
-                        <button onclick="markAsPaid('${u.id || u.mobile || u.email}')" class="btn-pill btn-pill-primary" style="padding: 0.3rem 0.8rem;">
-                            ${u.paid ? 'Revoke Paid' : 'Mark as Paid'}
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function loadFaculty() {
-            const users = JSON.parse(localStorage.getItem('udaan-users-db') || '[]');
-            const faculty = users.filter(u => u.role === 'faculty');
-            const tbody = document.getElementById('faculty-tbody');
-            tbody.innerHTML = '';
-
-            if (faculty.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 3rem;">No faculty accounts found. Login page creates demo faculty automatically.</td></tr>`;
-                return;
-            }
-
-            faculty.forEach(f => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><b>${f.name}</b><br><small>${f.email || f.mobile}</small></td>
-                    <td>${f.subject || 'General'}</td>
-                    <td>${(f.batches || ['Not assigned']).join(', ')}</td>
-                    <td>Batch planning, attendance, test review and doubt support</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function markAsPaid(identifier) {
-            let users = JSON.parse(localStorage.getItem('udaan-users-db') || '[]');
-            const idx = users.findIndex(u => u.mobile === identifier || u.email === identifier || u.id === identifier);
-            if (idx !== -1) {
-                users[idx].paid = !users[idx].paid;
-                users[idx].feeStatus = users[idx].paid ? 'paid' : 'pending';
-                localStorage.setItem('udaan-users-db', JSON.stringify(users));
-                
-                // Update active session if it's the same user
-                const session = JSON.parse(localStorage.getItem('udaan-user-session') || 'null');
-                if (session && (session.mobile === identifier || session.email === identifier || session.id === identifier)) {
-                    session.paid = users[idx].paid;
-                    session.feeStatus = users[idx].feeStatus;
-                    localStorage.setItem('udaan-user-session', JSON.stringify(session));
-                }
-                
-                loadStudents();
-                loadStats();
-            }
-        }
 
         function approveTest(id) {
             let res = JSON.parse(localStorage.getItem('udaan-results') || '[]');
@@ -515,37 +370,6 @@
                 loadResults();
                 loadStats();
             }
-        }
-
-        function renderRecentActivity(students, results) {
-            const activity = [
-                ...students.map(student => ({
-                    type: 'Signup',
-                    title: student.name,
-                    meta: `${student.id || 'No ID'} · ${student.course || 'No course'} · ${new Date(student.joinedAt || Date.now()).toLocaleString()}`,
-                    time: student.joinedAt || 0
-                })),
-                ...results.map(result => ({
-                    type: 'Mock Test',
-                    title: result.student,
-                    meta: `${result.studentId || 'No ID'} · ${result.course} · ${result.score}/${result.total}`,
-                    time: Number(String(result.id || '').replace('SUB-', '')) || 0
-                }))
-            ].sort((a, b) => b.time - a.time).slice(0, 6);
-
-            const box = document.getElementById('recent-activity');
-            if (!box) return;
-            if (!activity.length) {
-                box.innerHTML = `<div class="activity-item"><span>No activity yet.</span></div>`;
-                return;
-            }
-
-            box.innerHTML = activity.map(item => `
-                <div class="activity-item">
-                    <div><b>${item.type}: ${item.title}</b><br><small>${item.meta}</small></div>
-                    <span class="badge-pill ${item.type === 'Signup' ? 'badge-success' : 'badge-warning'}">${item.type}</span>
-                </div>
-            `).join('');
         }
 
         function exportData() {
